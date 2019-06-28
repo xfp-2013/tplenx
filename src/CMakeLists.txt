@@ -19,6 +19,7 @@ add_executable(tplenx ${CXX_SRCS})
 set_target_properties(tplenx PROPERTIES LINKER_LANGUAGE CXX)
 set_property(TARGET tplenx PROPERTY CXX_STANDARD 17)
 set_property(TARGET tplenx PROPERTY CXX_STANDARD_REQUIRED TRUE)
+set_property(TARGET tplenx PROPERTY CMAKE_EXE_LINKER_FLAGS “${CMAKE_EXE_LINKER_FLAGS} -static”)
+
 target_link_libraries(tplenx
-	libstdc++.a
 )
