@@ -2692,6 +2692,9 @@ class Renderer {
         m_tmp_val = callback(arguments);
         return &m_tmp_val;
       }
+	  m_tmp_val	= "";
+      return &m_tmp_val;
+
       inja_throw("render_error", "variable '" + static_cast<std::string>(bc.str) + "' not found");
       return nullptr;
     }
