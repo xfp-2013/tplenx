@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.4)
 
 project(tplenx VERSION 1.0)
 
+include_directories(
+	${CMAKE_INCLUDE_DIR}
+)
+link_directories(
+	${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
+)
 
 add_definitions("-DPROJECT_NAME=\"${PROJECT_NAME}\"")
 
