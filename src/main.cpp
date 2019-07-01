@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include <pantor/inja.hpp>
+#include <inja/inja.hpp>
 
 using namespace	inja;
 using namespace	std;
