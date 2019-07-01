@@ -22,4 +22,5 @@ set_property(TARGET tplenx PROPERTY CXX_STANDARD_REQUIRED TRUE)
 set_property(TARGET tplenx PROPERTY CMAKE_EXE_LINKER_FLAGS “${CMAKE_EXE_LINKER_FLAGS} -static”)
 
 target_link_libraries(tplenx
+	libstdc++.a
 )
