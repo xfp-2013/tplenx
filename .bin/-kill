@@ -1,0 +1,9 @@
+#!/bin/bash
+#set -e
+
+source .bin/_init_
+
+cq+=("docker rm -f ${NAME}")
+cq+=("docker ps -a")
+
+_exec "${cq[@]}"

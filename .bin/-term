@@ -1,0 +1,9 @@
+#!/bin/bash
+#set -e
+
+source .bin/_init_
+
+
+USER=1001:100
+
+_terms 'sh --login'
