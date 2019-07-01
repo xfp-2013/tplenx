@@ -55,6 +55,7 @@ struct Bytecode {
     Result,
     Round,
     Sort,
+    Split,
     Upper,
     Exists,
     ExistsInObject,
@@ -86,6 +87,9 @@ struct Bytecode {
     // if false, args is the index of the bytecode to jump to.
     // if true, no action is taken (falls through)
     ConditionalJump,
+
+    // set value
+    SetValue,
 
     // start loop
     // value popped off stack is what is iterated over

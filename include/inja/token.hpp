@@ -34,6 +34,7 @@ struct Token {
     LessThan,            // <
     LessEqual,           // <=
     NotEqual,            // !=
+    SetVal,              // =
     Unknown,
     Eof
   } kind {Kind::Unknown};

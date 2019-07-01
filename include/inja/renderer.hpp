@@ -154,7 +154,7 @@ class Renderer {
   const json* m_data;
 
   std::vector<const json*> m_tmp_args;
-  json m_tmp_val;
+  json  m_tmp_val;
 
 
  public:
@@ -164,7 +164,8 @@ class Renderer {
     m_loop_stack.reserve(16);
   }
 
-  void render_to(std::ostream& os, const Template& tmpl, const json& data) {
+  void render_to(std::ostream& os, const Template& tmpl, const json& data2) {
+    json  data  = data2;
     m_data = &data;
 
     for (size_t i = 0; i < tmpl.bytecodes.size(); ++i) {
@@ -233,6 +234,40 @@ class Renderer {
           std::sort(result.begin(), result.end());
           pop_args(bc);
           m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Split: {
+          auto args = get_args(bc);
+          std::string s1 = args[0]->get<std::string>();
+          std::string to = args[1]->get<std::string>();
+          pop_args(bc);
+
+          std::vector<std::string> result;
+          while(s1.size()) {
+            size_t  id  = s1.find(to);
+            if (id != std::string::npos) {
+              result.emplace_back(s1.substr(0, id));
+              s1  = s1.substr(id+to.size());
+              if (s1.size() == 0)
+                result.emplace_back(s1);
+            } else {
+              result.emplace_back(s1);
+              s1  = "";
+            }
+          }
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::SetValue: {
+          auto args = get_args(bc);
+          data[bc.str]  = std::move(m_stack.back());
+          m_stack.pop_back();
+
+          if (!m_loop_stack.empty()) {
+            LoopLevel& level = m_loop_stack.back();
+            level.data[bc.str]  = data[bc.str];
+          }
+          pop_args(bc);
           break;
         }
         case Bytecode::Op::At: {
