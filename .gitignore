@@ -1,5 +1,4 @@
 .env
 
-dists
-build
-github
+/build
+/github
