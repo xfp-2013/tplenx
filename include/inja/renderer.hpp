@@ -1,12 +1,18 @@
-#ifndef PANTOR_INJA_RENDERER_HPP
-#define PANTOR_INJA_RENDERER_HPP
+// Copyright (c) 2019 Pantor. All rights reserved.
+
+#ifndef INCLUDE_INJA_RENDERER_HPP_
+#define INCLUDE_INJA_RENDERER_HPP_
 
 #include <algorithm>
 #include <numeric>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
 #include "bytecode.hpp"
+#include "exceptions.hpp"
 #include "template.hpp"
 #include "utils.hpp"
 
@@ -24,6 +30,9 @@ inline nonstd::string_view convert_dot_to_json_pointer(nonstd::string_view dot, 
   return nonstd::string_view(out.data(), out.size());
 }
 
+/*!
+ * \brief Class for rendering a Template with data.
+ */
 class Renderer {
   std::vector<const json*>& get_args(const Bytecode& bc) {
     m_tmp_args.clear();
@@ -84,7 +93,7 @@ class Renderer {
         m_tmp_val = callback(arguments);
         return &m_tmp_val;
       }
-      inja_throw("render_error", "variable '" + static_cast<std::string>(bc.str) + "' not found");
+      throw RenderError("variable '" + static_cast<std::string>(bc.str) + "' not found");
       return nullptr;
     }
   }
@@ -101,8 +110,7 @@ class Renderer {
     try {
       return var.get<bool>();
     } catch (json::type_error& e) {
-      inja_throw("json_error", e.what());
-      throw;
+      throw JsonError(e.what());
     }
   }
 
@@ -110,7 +118,7 @@ class Renderer {
     LoopLevel& level = m_loop_stack.back();
 
     if (level.loop_type == LoopLevel::Type::Array) {
-      level.data[static_cast<std::string>(level.value_name)] = level.values.at(level.index); // *level.it;
+      level.data[static_cast<std::string>(level.value_name)] = level.values.at(level.index);  // *level.it;
       auto& loopData = level.data["loop"];
       loopData["index"] = level.index;
       loopData["index1"] = level.index + 1;
@@ -132,29 +140,28 @@ class Renderer {
     enum class Type { Map, Array };
 
     Type loop_type;
-    nonstd::string_view key_name;   // variable name for keys
-    nonstd::string_view value_name; // variable name for values
-    json data;                      // data with loop info added
+    nonstd::string_view key_name;    // variable name for keys
+    nonstd::string_view value_name;  // variable name for values
+    json data;                       // data with loop info added
 
-    json values;                    // values to iterate over
+    json values;                     // values to iterate over
 
     // loop over list
-    size_t index;                   // current list index
-    size_t size;                    // length of list
+    size_t index;                    // current list index
+    size_t size;                     // length of list
 
     // loop over map
     using KeyValue = std::pair<nonstd::string_view, json*>;
     using MapValues = std::vector<KeyValue>;
-    MapValues map_values;           // values to iterate over
-    MapValues::iterator map_it;     // iterator over values
-
+    MapValues map_values;            // values to iterate over
+    MapValues::iterator map_it;      // iterator over values
   };
 
   std::vector<LoopLevel> m_loop_stack;
   const json* m_data;
 
   std::vector<const json*> m_tmp_args;
-  json  m_tmp_val;
+  json m_tmp_val;
 
 
  public:
@@ -219,7 +226,7 @@ class Renderer {
         case Bytecode::Op::Length: {
           const json& val = *get_args(bc)[0];
 
-          int result;
+          size_t result;
           if (val.is_string()) {
             result = val.get_ref<const std::string&>().length();
           } else {
@@ -491,12 +498,12 @@ class Renderer {
           break;
         }
         case Bytecode::Op::Include:
-          Renderer(m_included_templates, m_callbacks).render_to(os, m_included_templates.find(get_imm(bc)->get_ref<const std::string&>())->second, data);
+          Renderer(m_included_templates, m_callbacks).render_to(os, m_included_templates.find(get_imm(bc)->get_ref<const std::string&>())->second, *m_data);
           break;
         case Bytecode::Op::Callback: {
           auto callback = m_callbacks.find_callback(bc.str, bc.args);
           if (!callback) {
-            inja_throw("render_error", "function '" + static_cast<std::string>(bc.str) + "' (" + std::to_string(static_cast<unsigned int>(bc.args)) + ") not found");
+            throw RenderError("function '" + static_cast<std::string>(bc.str) + "' (" + std::to_string(static_cast<unsigned int>(bc.args)) + ") not found");
           }
           json result = callback(get_args(bc));
           pop_args(bc);
@@ -533,7 +540,7 @@ class Renderer {
             // map iterator
             if (!level.values.is_object()) {
               m_loop_stack.pop_back();
-              inja_throw("render_error", "for key, value requires object");
+              throw RenderError("for key, value requires object");
             }
             level.loop_type = LoopLevel::Type::Map;
             level.key_name = bc.value.get_ref<const std::string&>();
@@ -542,12 +549,13 @@ class Renderer {
             for (auto it = level.values.begin(), end = level.values.end(); it != end; ++it) {
               level.map_values.emplace_back(it.key(), &it.value());
             }
-            std::sort(level.map_values.begin(), level.map_values.end(), [](const LoopLevel::KeyValue& a, const LoopLevel::KeyValue& b) { return a.first < b.first; });
+            auto sort_lambda = [](const LoopLevel::KeyValue& a, const LoopLevel::KeyValue& b) { return a.first < b.first; };
+            std::sort(level.map_values.begin(), level.map_values.end(), sort_lambda);
             level.map_it = level.map_values.begin();
           } else {
             if (!level.values.is_array()) {
               m_loop_stack.pop_back();
-              inja_throw("render_error", "type must be array");
+              throw RenderError("type must be array");
             }
 
             // list iterator
@@ -570,7 +578,7 @@ class Renderer {
         }
         case Bytecode::Op::EndLoop: {
           if (m_loop_stack.empty()) {
-            inja_throw("render_error", "unexpected state in renderer");
+            throw RenderError("unexpected state in renderer");
           }
           LoopLevel& level = m_loop_stack.back();
 
@@ -601,7 +609,7 @@ class Renderer {
           break;
         }
         default: {
-          inja_throw("render_error", "unknown op in renderer: " + std::to_string(static_cast<unsigned int>(bc.op)));
+          throw RenderError("unknown op in renderer: " + std::to_string(static_cast<unsigned int>(bc.op)));
         }
       }
     }
@@ -610,4 +618,4 @@ class Renderer {
 
 }  // namespace inja
 
-#endif  // PANTOR_INJA_RENDERER_HPP
+#endif  // INCLUDE_INJA_RENDERER_HPP_

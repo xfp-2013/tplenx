@@ -1,5 +1,7 @@
-#ifndef PANTOR_INJA_LEXER_HPP
-#define PANTOR_INJA_LEXER_HPP
+// Copyright (c) 2019 Pantor. All rights reserved.
+
+#ifndef INCLUDE_INJA_LEXER_HPP_
+#define INCLUDE_INJA_LEXER_HPP_
 
 #include <cctype>
 #include <locale>
@@ -11,6 +13,9 @@
 
 namespace inja {
 
+/*!
+ * \brief Class for lexing an inja Template.
+ */
 class Lexer {
   enum class State {
     Text,
@@ -31,6 +36,26 @@ class Lexer {
 
  public:
   explicit Lexer(const LexerConfig& config) : m_config(config) {}
+
+  SourceLocation current_position() const {
+    // Get line and offset position (starts at 1:1)
+    auto sliced = string_view::slice(m_in, 0, m_tok_start);
+    std::size_t last_newline = sliced.rfind("\n");
+
+    if (last_newline == nonstd::string_view::npos) {
+      return {1, sliced.length() + 1};
+    }
+
+    // Count newlines
+    size_t count_lines = 0;
+    size_t search_start = 0;
+    while (search_start < sliced.size()) {
+      search_start = sliced.find("\n", search_start + 1);
+      count_lines += 1;
+    }
+
+    return {count_lines + 1, sliced.length() - last_newline + 1};
+  }
 
   void start(nonstd::string_view in) {
     m_in = in;
@@ -59,21 +84,29 @@ class Lexer {
 
         // try to match one of the opening sequences, and get the close
         nonstd::string_view open_str = m_in.substr(m_pos);
+        bool must_lstrip = false;
         if (inja::string_view::starts_with(open_str, m_config.expression_open)) {
           m_state = State::ExpressionStart;
         } else if (inja::string_view::starts_with(open_str, m_config.statement_open)) {
           m_state = State::StatementStart;
+          must_lstrip = m_config.lstrip_blocks;
         } else if (inja::string_view::starts_with(open_str, m_config.comment_open)) {
           m_state = State::CommentStart;
+          must_lstrip = m_config.lstrip_blocks;
         } else if ((m_pos == 0 || m_in[m_pos - 1] == '\n') &&
                    inja::string_view::starts_with(open_str, m_config.line_statement)) {
           m_state = State::LineStart;
         } else {
-          m_pos += 1; // wasn't actually an opening sequence
+          m_pos += 1;  // wasn't actually an opening sequence
           goto again;
         }
-        if (m_pos == m_tok_start) goto again;  // don't generate empty token
-        return make_token(Token::Kind::Text);
+
+        nonstd::string_view text = string_view::slice(m_in, m_tok_start, m_pos);
+        if (must_lstrip)
+          text = clear_final_line_if_whitespace(text);
+
+        if (text.empty()) goto again;  // don't generate empty token
+        return Token(Token::Kind::Text, text);
       }
       case State::ExpressionStart: {
         m_state = State::ExpressionBody;
@@ -100,7 +133,7 @@ class Lexer {
       case State::LineBody:
         return scan_body("\n", Token::Kind::LineStatementClose);
       case State::StatementBody:
-        return scan_body(m_config.statement_close, Token::Kind::StatementClose);
+        return scan_body(m_config.statement_close, Token::Kind::StatementClose, m_config.trim_blocks);
       case State::CommentBody: {
         // fast-scan to comment close
         size_t end = m_in.substr(m_pos).find(m_config.comment_close);
@@ -111,7 +144,10 @@ class Lexer {
         // return the entire comment in the close token
         m_state = State::Text;
         m_pos += end + m_config.comment_close.size();
-        return make_token(Token::Kind::CommentClose);
+        Token tok = make_token(Token::Kind::CommentClose);
+        if (m_config.trim_blocks)
+          skip_newline();
+        return tok;
       }
     }
   }
@@ -119,7 +155,7 @@ class Lexer {
   const LexerConfig& get_config() const { return m_config; }
 
  private:
-  Token scan_body(nonstd::string_view close, Token::Kind closeKind) {
+  Token scan_body(nonstd::string_view close, Token::Kind closeKind, bool trim = false) {
   again:
     // skip whitespace (except for \n as it might be a close)
     if (m_tok_start >= m_in.size()) return make_token(Token::Kind::Eof);
@@ -133,7 +169,10 @@ class Lexer {
     if (inja::string_view::starts_with(m_in.substr(m_tok_start), close)) {
       m_state = State::Text;
       m_pos = m_tok_start + close.size();
-      return make_token(closeKind);
+      Token tok = make_token(closeKind);
+      if (trim)
+        skip_newline();
+      return tok;
     }
 
     // skip \n
@@ -143,7 +182,10 @@ class Lexer {
     }
 
     m_pos = m_tok_start + 1;
-    if (std::isalpha(ch)) return scan_id();
+    if (std::isalpha(ch)) {
+      return scan_id();
+    }
+
     switch (ch) {
       case ',':
         return make_token(Token::Kind::Comma);
@@ -254,8 +296,35 @@ class Lexer {
   Token make_token(Token::Kind kind) const {
     return Token(kind, string_view::slice(m_in, m_tok_start, m_pos));
   }
+
+  void skip_newline() {
+    if (m_pos < m_in.size()) {
+      char ch = m_in[m_pos];
+      if (ch == '\n')
+        m_pos += 1;
+      else if (ch == '\r') {
+        m_pos += 1;
+        if (m_pos < m_in.size() && m_in[m_pos] == '\n')
+          m_pos += 1;
+      }
+    }
+  }
+
+  static nonstd::string_view clear_final_line_if_whitespace(nonstd::string_view text) {
+    nonstd::string_view result = text;
+    while (!result.empty()) {
+      char ch = result.back();
+      if (ch == ' ' || ch == '\t')
+       result.remove_suffix(1);
+      else if (ch == '\n' || ch == '\r')
+        break;
+      else
+        return text;
+    }
+    return result;
+  }
 };
 
 }
 
-#endif // PANTOR_INJA_LEXER_HPP
+#endif  // INCLUDE_INJA_LEXER_HPP_

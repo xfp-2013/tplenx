@@ -1,5 +1,9 @@
-#ifndef PANTOR_INJA_FUNCTION_STORAGE_HPP
-#define PANTOR_INJA_FUNCTION_STORAGE_HPP
+// Copyright (c) 2019 Pantor. All rights reserved.
+
+#ifndef INCLUDE_INJA_FUNCTION_STORAGE_HPP_
+#define INCLUDE_INJA_FUNCTION_STORAGE_HPP_
+
+#include <vector>
 
 #include "bytecode.hpp"
 #include "string_view.hpp"
@@ -7,11 +11,14 @@
 
 namespace inja {
 
-using namespace nlohmann;
+using json = nlohmann::json;
 
 using Arguments = std::vector<const json*>;
 using CallbackFunction = std::function<json(Arguments& args)>;
 
+/*!
+ * \brief Class for builtin functions and user-defined callbacks.
+ */
 class FunctionStorage {
  public:
   void add_builtin(nonstd::string_view name, unsigned int num_args, Bytecode::Op op) {
@@ -48,7 +55,9 @@ class FunctionStorage {
   FunctionData& get_or_new(nonstd::string_view name, unsigned int num_args) {
     auto &vec = m_map[static_cast<std::string>(name)];
     for (auto &i: vec) {
-      if (i.num_args == num_args) return i;
+      if (i.num_args == num_args) {
+        return i;
+      }
     }
     vec.emplace_back();
     vec.back().num_args = num_args;
@@ -57,9 +66,14 @@ class FunctionStorage {
 
   const FunctionData* get(nonstd::string_view name, unsigned int num_args) const {
     auto it = m_map.find(static_cast<std::string>(name));
-    if (it == m_map.end()) return nullptr;
+    if (it == m_map.end()) {
+      return nullptr;
+    }
+
     for (auto &&i: it->second) {
-      if (i.num_args == num_args) return &i;
+      if (i.num_args == num_args) {
+        return &i;
+      }
     }
     return nullptr;
   }
@@ -69,4 +83,4 @@ class FunctionStorage {
 
 }
 
-#endif // PANTOR_INJA_FUNCTION_STORAGE_HPP
+#endif  // INCLUDE_INJA_FUNCTION_STORAGE_HPP_
