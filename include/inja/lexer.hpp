@@ -178,7 +178,7 @@ class Lexer {
           m_pos += 1;
           return make_token(Token::Kind::Equal);
         }
-        return make_token(Token::Kind::SetVal);
+        return make_token(Token::Kind::SetVal);     // xfp-190701. Unknown > SetVal
       case '!':
         if (m_pos < m_in.size() && m_in[m_pos] == '=') {
           m_pos += 1;

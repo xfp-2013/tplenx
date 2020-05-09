@@ -55,7 +55,7 @@ struct Bytecode {
     Result,
     Round,
     Sort,
-    Split,
+    Split,              // xfp-190701. string split
     Upper,
     Exists,
     ExistsInObject,
@@ -88,7 +88,8 @@ struct Bytecode {
     // if true, no action is taken (falls through)
     ConditionalJump,
 
-    // set value
+    // xfp-190701. set value
+    // set var = ...
     SetValue,
 
     // start loop

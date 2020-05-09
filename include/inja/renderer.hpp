@@ -164,6 +164,7 @@ class Renderer {
     m_loop_stack.reserve(16);
   }
 
+  // xfp-190701. data > data2. const라 수정이 안되는 문제로
   void render_to(std::ostream& os, const Template& tmpl, const json& data2) {
     json  data  = data2;
     m_data = &data;
@@ -236,6 +237,8 @@ class Renderer {
           m_stack.emplace_back(std::move(result));
           break;
         }
+
+        // xfp-190701. split(string, 'ch')
         case Bytecode::Op::Split: {
           auto args = get_args(bc);
           std::string s1 = args[0]->get<std::string>();
@@ -258,6 +261,8 @@ class Renderer {
           m_stack.emplace_back(std::move(result));
           break;
         }
+
+        // xfp-190701. set var = ...
         case Bytecode::Op::SetValue: {
           auto args = get_args(bc);
           data[bc.str]  = std::move(m_stack.back());

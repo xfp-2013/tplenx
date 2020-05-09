@@ -34,7 +34,7 @@ class ParserStatic {
     functions.add_builtin("range", 1, Bytecode::Op::Range);
     functions.add_builtin("round", 2, Bytecode::Op::Round);
     functions.add_builtin("sort", 1, Bytecode::Op::Sort);
-    functions.add_builtin("split", 2, Bytecode::Op::Split);
+    functions.add_builtin("split", 2, Bytecode::Op::Split);         // xfp-190701. split
     functions.add_builtin("upper", 1, Bytecode::Op::Upper);
     functions.add_builtin("exists", 1, Bytecode::Op::Exists);
     functions.add_builtin("existsIn", 2, Bytecode::Op::ExistsInObject);
@@ -324,6 +324,8 @@ class Parser {
         // conditional jump; destination will be filled in by else or endif
         tmpl.bytecodes.emplace_back(Bytecode::Op::ConditionalJump);
       }
+
+    // xfp-190701. set var = ...
     } else if (m_tok.text == static_cast<decltype(m_tok.text)>("set")) {
       get_next_token();
 
@@ -331,8 +333,7 @@ class Parser {
       get_next_token();
 
       if (m_tok.kind != Token::Kind::SetVal)
-        inja_throw("parser_error",
-                   "expected '=', got '" + m_tok.describe() + "'");
+        throw_parser_error("parser_error, expected '=', got '" + m_tok.describe() + "'");
       get_next_token();
 
       if (!parse_expression(tmpl)) return false;

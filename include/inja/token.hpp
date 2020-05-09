@@ -34,7 +34,7 @@ struct Token {
     LessThan,            // <
     LessEqual,           // <=
     NotEqual,            // !=
-    SetVal,              // =
+    SetVal,              // =       // xfp-190701. =
     Unknown,
     Eof
   } kind {Kind::Unknown};
