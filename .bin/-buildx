@@ -1,0 +1,17 @@
+#!/bin/bash
+#set -e
+
+source .bin/_init_
+
+IMAGE2=${ORGAN}/${NAME}:latest
+
+
+OPT=''
+#[[ ! -z $PUSH ]] && OPT='--push'
+
+cq+=("docker image prune -f")
+cq+=("docker buildx create --use --name xxfp --platform linux/arm64,linux/amd64")
+cq+=("docker buildx build --build-arg VERSION=${VERSION} -t ${IMAGE2} ${OPT} -f docker/Dockerfile .")
+cq+=("docker buildx imagetools inspect ${IMAGE2}")
+
+_exec "${cq[@]}"

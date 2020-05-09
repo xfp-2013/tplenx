@@ -10,6 +10,6 @@ TFILE=/tmp/${NAME}.${MACH}
 sed "s|FROM.*|FROM ${DMACH}/${FROM}|" ${DFILE} > ${TFILE}
 
 cq+=("docker image prune -f")
-cq+=("docker build --build-arg MACHINE=${MACH} --build-arg VERSION=${VERSION} -t ${ORGAN}/${NAME}:${MACH} -t ${ORGAN}/${NAME}:latest -f ${TFILE} .")
+cq+=("docker build --build-arg VERSION=${VERSION} -t ${ORGAN}/${NAME}:${MACH} -t ${ORGAN}/${NAME}:latest -f ${TFILE} .")
 
 _exec "${cq[@]}"

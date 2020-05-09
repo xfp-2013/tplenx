@@ -4,7 +4,7 @@
 source .bin/_init_
 
 
-cmdq=("docker system prune -f")
-cmdq=("docker images")
+cq+=("docker system prune -f")
+cq+=("docker images")
 
-_exec "${cmdq[@]}"
+_exec "${cq[@]}"

@@ -1,11 +1,9 @@
 FROM alpine:edge
 MAINTAINER shin hung-jae <xfp.730700@gmail.com>
 
-ARG MACHINE
 ARG VERSION
 
-LABEL machine="${MACHINE}" \
-      version="${VERSION}"
+LABEL version="${VERSION}"
 
 RUN adduser -G users -s sh -S -D -H -u 1001 app; \
     apk add --no-cache alpine-sdk cmake git;

@@ -60,12 +60,14 @@ _exec_display() {
 _terms() {
    rc=`docker ps --filter status=running --format "{{.Names}}" | grep "${NAME}" | wc -l`
 
+   [[ -z $ARCH ]] && ARCH='latest'
+
    local cc=()
    [[ $rc == '0' ]] && {
-      cc+=("docker run -it --rm --user=${USER} --name ${NAME} ${OPTION} ${ORGAN}/${NAME}:latest $1")
+      cc+=("docker run -it --rm --user=${USER} --name ${NAME} ${OPTION} ${ORGAN}/${NAME}:${ARCH} $SHELL")
    }
    [[ $rc != '0' ]] && {
-      cc+=("docker exec -it --user=${USER} ${NAME} $1")
+      cc+=("docker exec -it --user=${USER} ${NAME} $SHELL")
    }
 
    _exec "${cc[@]}"

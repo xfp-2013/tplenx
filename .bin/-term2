@@ -4,4 +4,6 @@
 source .bin/_init_
 
 
+SHELL='sh --login'
+
 _terms 'sh --login'
