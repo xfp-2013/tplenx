@@ -14,7 +14,11 @@ namespace {
 void error_impl(const char* msg, size_t length, void * /*user_data*/)
 {
     fprintf(stderr, "%.*s\n", (int)length, msg);
-    C4_DEBUG_BREAK();
+    fflush(stderr);
+    if(c4::is_debugger_attached())
+    {
+        C4_DEBUG_BREAK();
+    }
     ::abort();
 }
 
@@ -38,10 +42,22 @@ void free_impl(void *mem, size_t /*length*/, void * /*user_data*/)
 Callbacks::Callbacks()
     :
     m_user_data(nullptr),
-    m_allocate(&allocate_impl),
-    m_free(&free_impl),
-    m_error(&error_impl)
+    m_allocate(allocate_impl),
+    m_free(free_impl),
+    m_error(error_impl)
 {
+}
+
+Callbacks::Callbacks(void *user_data, pfn_allocate alloc_, pfn_free free_, pfn_error error_)
+    :
+    m_user_data(user_data),
+    m_allocate(alloc_ ? alloc_ : allocate_impl),
+    m_free(free_ ? free_ : free_impl),
+    m_error(error_ ? error_ : error_impl)
+{
+    C4_CHECK(m_allocate);
+    C4_CHECK(m_free);
+    C4_CHECK(m_error);
 }
 
 #else // RYML_NO_DEFAULT_CALLBACKS
@@ -55,16 +71,19 @@ Callbacks::Callbacks()
 {
 }
 
-#endif // RYML_NO_DEFAULT_CALLBACKS
-
-Callbacks::Callbacks(void *user_data, pfn_allocate alloc, pfn_free free_, pfn_error error_)
+Callbacks::Callbacks(void *user_data, pfn_allocate alloc_, pfn_free free_, pfn_error error_)
     :
     m_user_data(user_data),
-    m_allocate(alloc),
-    m_free(free_),
-    m_error(error_)
+    m_allocate(alloc_ ? alloc_ : allocate_impl),
+    m_free(free_ ? free_ : free_impl),
+    m_error(error_ ? error_ : error_impl)
 {
+    C4_CHECK(m_allocate);
+    C4_CHECK(m_free);
+    C4_CHECK(m_error);
 }
+
+#endif // RYML_NO_DEFAULT_CALLBACKS
 
 namespace {
 Callbacks s_default_callbacks;

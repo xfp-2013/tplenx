@@ -54,25 +54,45 @@ public:
 
 public:
 
-    // create a new YAML tree and parse into its root
-
+    //! create a new YAML tree and parse into its root
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     Tree parse(csubstr filename, csubstr src) { Tree t; t.reserve(_estimate_capacity(src)); parse(filename, t.copy_to_arena(src), &t); return t; }
+    //! create a new YAML tree and parse into its root
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     Tree parse(csubstr filename,  substr src) { Tree t; t.reserve(_estimate_capacity(src)); parse(filename, src, &t); return t; }
 
-    // parse with reuse of a YAML tree
 
+    //! parse with reuse of a YAML tree
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     void parse(csubstr filename,  substr src, Tree *t) { parse(filename, src, t, t->root_id()); }
+    //! parse with reuse of a YAML tree
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     void parse(csubstr filename, csubstr src, Tree *t) { parse(filename, t->copy_to_arena(src), t, t->root_id()); }
 
-    // parse directly into a node
 
+    //! parse directly into a node
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     void parse(csubstr filename,  substr src, Tree *t, size_t node_id); // this is the workhorse overload; everything else is syntactic candy
+    //! parse directly into a node
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     void parse(csubstr filename, csubstr src, Tree *t, size_t node_id) { parse(filename, t->copy_to_arena(src), t, node_id); }
 
-    // parse directly into a node ref
 
+    //! parse directly into a node ref
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     void parse(csubstr filename,  substr src, NodeRef node) { parse(filename, src, node.tree(), node.id()); }
+    //! parse directly into a node ref
+    //! @note aliases and anchors are not resolved. You
+    //! can do this by calling Tree::resolve() after parsing.
     void parse(csubstr filename, csubstr src, NodeRef node) { parse(filename, node.tree()->copy_to_arena(src), node.tree(), node.id()); }
+
 
 private:
 
@@ -182,18 +202,31 @@ private:
 
     struct LineContents
     {
-        csubstr  full;        ///< the full line, including newlines on the right
-        csubstr  stripped;    ///< the stripped line, excluding newlines on the right
-        csubstr  rem;         ///< the stripped line remainder; initially starts at the first non-space character
-        size_t   indentation; ///< the number of spaces on the beginning of the line
+        csubstr  full;           ///< the full line, including newlines on the right
+        csubstr  stripped;       ///< the stripped line, excluding newlines on the right
+        csubstr  rem;            ///< the stripped line remainder; initially starts at the first non-space character
+        size_t   indentation{0}; ///< the number of spaces on the beginning of the line
 
-        void reset(csubstr const& full_, csubstr const& stripped_)
+        void reset(csubstr full_, csubstr stripped_)
         {
             full = full_;
             stripped = stripped_;
             rem = stripped_;
             // find the first column where the character is not a space
             indentation = full.first_not_of(' ');
+        }
+
+        size_t current_col() const
+        {
+            return current_col(rem);
+        }
+
+        size_t current_col(csubstr s) const
+        {
+            RYML_ASSERT(s.str >= full.str);
+            RYML_ASSERT(full.contains(s));
+            size_t col = s.str - full.str;
+            return col;
         }
     };
 
@@ -203,12 +236,30 @@ private:
         size_t       level;
         size_t       node_id; // don't hold a pointer to the node as it will be relocated during tree resizes
         csubstr      scalar;
+        size_t       scalar_col; // the column where the scalar (or its quotes) begin
 
         Location     pos;
         LineContents line_contents;
         size_t       indref;
 
-        State() { memset(this, 0, sizeof(*this)); }
+        State()
+        {
+            #ifdef __clang__
+            #    pragma clang diagnostic push
+            //#    pragma clang diagnostic ignored "-Wgnu-inline-cpp-without-extern" // debugbreak/debugbreak.h:50:16: error: 'gnu_inline' attribute without 'extern' in C++ treated as externally available, this changed in Clang 10 [-Werror,-Wgnu-inline-cpp-without-extern]
+            #elif defined(__GNUC__)
+            #    pragma GCC diagnostic push
+            #    if __GNUC__>= 8
+            #        pragma GCC diagnostic ignored "-Wclass-memaccess" // error: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class c4::yml::Tree’ with no trivial copy-assignment; use assignment or value-initialization instead
+            #    endif
+            #endif
+            memset(this, 0, sizeof(*this));
+            #ifdef __clang__
+            #    pragma clang diagnostic pop
+            #elif defined(__GNUC__)
+            #    pragma GCC diagnostic pop
+            #endif
+        }
         void reset(const char *file, size_t node_id_)
         {
             flags = RUNK|RTOP;
@@ -218,6 +269,7 @@ private:
             pos.line = 1;
             pos.col = 1;
             node_id = node_id_;
+            scalar_col = 0;
             scalar.clear();
             indref = 0;
         }
@@ -228,7 +280,7 @@ private:
 
     void _prepare_pop()
     {
-        C4_ASSERT(m_stack.size() > 1);
+        RYML_ASSERT(m_stack.size() > 1);
         State const& curr = m_stack.top();
         State      & next = m_stack.top(1);
         next.pos = curr.pos;
