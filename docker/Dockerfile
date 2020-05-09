@@ -7,7 +7,8 @@ ARG VERSION
 LABEL machine="${MACHINE}" \
       version="${VERSION}"
 
-RUN apk add --no-cache alpine-sdk cmake git
+RUN adduser -G users -s sh -S -D -H -u 1001 app; \
+    apk add --no-cache alpine-sdk cmake git;
 
 COPY docker/etc /etc
 COPY docker/home /home/app
